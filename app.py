@@ -78,14 +78,20 @@ def main():
     st.title('Stock Income Statement Comparison')
 
     # Provide the path to the folder containing Excel files
-    stock_folder = st.text_input('Enter the path to the stock folder:', '')
+    stock_folder = '/mount/src/predictram-results-analyser/stock_folder'
 
-    if stock_folder:
-        stock_name = st.text_input('Enter the stock name (part of the file name):', '')
+    # Load Excel files from the folder
+    files = load_excel_files(stock_folder)
+
+    if files:
+        # Extract stock names from file names (assuming file names are like 'ABB.xlsx')
+        stock_names = [os.path.splitext(file)[0] for file in files]
         
-        if stock_name:
-            # Find the Excel file matching the stock name
-            stock_file = find_stock_file(stock_name, stock_folder)
+        # Stock picker dropdown
+        selected_stock = st.selectbox('Select a stock:', stock_names)
+        
+        if selected_stock:
+            stock_file = find_stock_file(selected_stock, stock_folder)
             
             if stock_file:
                 file_path = os.path.join(stock_folder, stock_file)
@@ -112,11 +118,9 @@ def main():
                 else:
                     st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
             else:
-                st.warning(f"No file found for stock name '{stock_name}' in the specified folder.")
-        else:
-            st.info('Please enter the stock name.')
+                st.warning(f"No file found for stock name '{selected_stock}' in the specified folder.")
     else:
-        st.info('Please enter the path to the stock folder.')
+        st.warning("No Excel files found in the specified folder.")
 
 if __name__ == "__main__":
     main()
