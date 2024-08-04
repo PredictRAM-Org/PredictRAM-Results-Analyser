@@ -1,9 +1,14 @@
 import pandas as pd
 import streamlit as st
+import os
 
 # Function to load data from an Excel file
 def load_data(file_path):
-    return pd.read_excel(file_path, sheet_name=None)
+    try:
+        return pd.read_excel(file_path, sheet_name=None)
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return None
 
 # Function to get stock data from the Excel sheet
 def get_stock_data(data, stock_symbol):
@@ -46,8 +51,16 @@ def display_comparative_analysis(stock_data, stock_symbol):
 def main():
     st.title("Stock Comparative Analysis")
 
+    # Check if the file exists
+    file_path = 'all_stocks_data.xlsx'
+    if not os.path.exists(file_path):
+        st.error(f"The file {file_path} does not exist.")
+        return
+
     # Load the data
-    data = load_data('all_stocks_data.xlsx')
+    data = load_data(file_path)
+    if data is None:
+        return
 
     # Select a stock
     stock_symbol = st.selectbox("Select a Stock", options=list(data.keys()))
