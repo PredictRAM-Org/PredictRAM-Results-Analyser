@@ -6,12 +6,18 @@ def load_excel_files(stock_folder):
     if not stock_folder:
         st.error("Stock folder path is empty. Please enter a valid path.")
         return []
+    
+    # Normalize the path
+    stock_folder = os.path.abspath(stock_folder)
+    
     if not os.path.isdir(stock_folder):
         st.error(f"The path '{stock_folder}' is not a valid directory.")
         return []
     
     try:
         files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
+        if not files:
+            st.warning("No Excel files found in the specified folder.")
         return files
     except Exception as e:
         st.error(f"Error loading files: {e}")
@@ -70,6 +76,9 @@ def main():
     stock_folder = st.text_input('Enter the path to the stock folder:', '')
 
     if stock_folder:
+        # Print the path for debugging
+        st.write(f"Stock folder path: {stock_folder}")
+        
         files = load_excel_files(stock_folder)
         
         if files:
@@ -77,6 +86,8 @@ def main():
             
             if selected_file:
                 file_path = os.path.join(stock_folder, selected_file)
+                st.write(f"Selected file path: {file_path}")
+                
                 sheets = read_excel_sheets(file_path)
                 
                 if 'Income Statement (Quarterly)' in sheets:
@@ -97,7 +108,7 @@ def main():
                 else:
                     st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
         else:
-            st.error("No Excel files found in the specified folder.")
+            st.warning("No Excel files found in the specified folder.")
     else:
         st.info('Please enter the path to the stock folder.')
 
