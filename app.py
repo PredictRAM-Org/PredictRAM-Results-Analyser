@@ -71,14 +71,19 @@ def compare_data(df, metrics):
 # Function to plot data
 def plot_comparisons(comparisons, metric_name):
     df_comparison = pd.DataFrame(comparisons[metric_name])
+    if df_comparison.empty:
+        st.write(f"No data available for {metric_name} comparisons.")
+        return
+    
     df_comparison.set_index('Period', inplace=True)
-    df_comparison.plot(kind='bar', figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10, 6))
+    df_comparison[['Change', 'Percentage Change']].plot(kind='bar', ax=ax)
     plt.title(f'{metric_name} Comparison')
     plt.xlabel('Period')
     plt.ylabel('Value')
     plt.xticks(rotation=45)
     plt.tight_layout()
-    st.pyplot()
+    st.pyplot(fig)
 
 def main():
     st.title('Stock Income Statement Comparative Analysis')
