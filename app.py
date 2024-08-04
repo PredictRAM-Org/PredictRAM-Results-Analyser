@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
+# Function to load Excel files from a given directory
 def load_excel_files(stock_folder):
     stock_folder = os.path.abspath(stock_folder)
     if not os.path.isdir(stock_folder):
@@ -16,6 +17,7 @@ def load_excel_files(stock_folder):
         st.error(f"Error loading files: {e}")
         return []
 
+# Function to find the Excel file for the selected stock
 def find_stock_file(stock_name, stock_folder):
     files = load_excel_files(stock_folder)
     for file in files:
@@ -23,6 +25,7 @@ def find_stock_file(stock_name, stock_folder):
             return file
     return None
 
+# Function to read all sheets from an Excel file
 def read_excel_sheets(file_path):
     try:
         xls = pd.ExcelFile(file_path)
@@ -33,6 +36,7 @@ def read_excel_sheets(file_path):
         st.error(f"Error reading Excel file: {e}")
         return {}
 
+# Function to get the latest and previous quarter data
 def get_latest_and_previous_quarter_data(df):
     # Ensure columns are datetime
     df.columns = pd.to_datetime(df.columns, errors='coerce')
@@ -61,6 +65,7 @@ def get_latest_and_previous_quarter_data(df):
     
     return latest_data, previous_data
 
+# Function to compare quarterly data
 def compare_quarterly_data(df):
     latest_data, previous_data = get_latest_and_previous_quarter_data(df)
     
