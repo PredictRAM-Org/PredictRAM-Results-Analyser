@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 
-def load_excel_files(stock_folder):
+def load_excel_files(/mount/src/predictram-results-analyser/stock_folder):
     # Verify that the folder path is correct and not a file path
     if not stock_folder:
         st.error("Stock folder path is empty. Please enter a valid path.")
