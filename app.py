@@ -19,7 +19,7 @@ file_path = 'all_stocks_data.xlsx'
 data = load_data(file_path)
 
 # Extract the list of stock symbols
-stock_symbols = data['Sheet1']['Symbol'].unique()
+stock_symbols = data['Sheet1']['symbol'].unique()
 
 # Streamlit UI
 st.title("Stock Comparative Analysis")
