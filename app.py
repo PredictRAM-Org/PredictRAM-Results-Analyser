@@ -35,134 +35,90 @@ def read_excel_sheets(file_path):
         st.error(f"Error reading Excel file: {e}")
         return {}
 
-# Function to get the latest and previous quarter data
-def get_latest_and_previous_quarter_data(df):
-    # Ensure columns are datetime
-    df.columns = pd.to_datetime(df.columns, errors='coerce')
-    
-    # Drop columns that couldn't be parsed as dates
-    df = df.loc[:, df.columns.notna()]
-    
-    # Print columns to debug
-    st.write("Columns available:", df.columns)
-    
-    # Check if there are at least two valid dates
-    if len(df.columns) < 2:
-        st.error("Not enough valid columns for comparison.")
-        return None, None
-    
-    # Sort columns by date
-    sorted_cols = sorted(df.columns, reverse=True)
-    st.write("Sorted columns:", sorted_cols)
-    
-    # Identify latest and previous columns
-    latest_col = sorted_cols[0]
-    previous_col = sorted_cols[1]
-    
-    if latest_col not in df.columns or previous_col not in df.columns:
-        st.error("Columns for latest and previous quarters are missing.")
-        return None, None
-    
-    # Print index to debug
-    st.write("Index available:", df.index)
-    
-    # Check if the required rows are present in the DataFrame
-    required_rows = ['Total Revenue', 'Gross Profit', 'Net Income']
-    available_rows = df.index.tolist()
-    
-    st.write("Required rows:", required_rows)
-    st.write("Available rows:", available_rows)
-    
-    if not all(row in available_rows for row in required_rows):
-        st.error("Required rows for comparison are missing in the data.")
-        return None, None
-    
-    latest_data = df.loc[required_rows, latest_col]
-    previous_data = df.loc[required_rows, previous_col]
-    
-    return latest_data, previous_data
-
-# Function to compare quarterly data
+# Function to compare quarterly data for each year
 def compare_quarterly_data(df):
-    latest_data, previous_data = get_latest_and_previous_quarter_data(df)
+    df.columns = pd.to_datetime(df.columns, errors='coerce')
+    df = df.loc[:, df.columns.notna()]
+    df = df.sort_index(axis=1, ascending=False)
+
+    # Print columns to debug
+    st.write("Quarterly Columns available:", df.columns)
+
+    if df.shape[1] < 2:
+        st.error("Not enough valid columns for comparison.")
+        return None
     
-    if latest_data is None or previous_data is None:
-        return {}
-    
+    # Define metrics of interest
+    metrics = ['Total Revenue', 'Gross Profit', 'Net Income']
     comparisons = {}
-    for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
-        if row in latest_data.index and row in previous_data.index:
-            latest_value = latest_data[row]
-            previous_value = previous_data[row]
-            comparison = {
-                'Latest': latest_value,
-                'Previous': previous_value,
-                'Change': latest_value - previous_value,
-                'Percentage Change': (latest_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
-            }
-            comparisons[row] = comparison
+    
+    for metric in metrics:
+        if metric in df.index:
+            metric_data = df.loc[metric]
+            metric_comparisons = []
+            
+            for i in range(len(metric_data) - 1):
+                current_quarter = metric_data.index[i]
+                previous_quarter = metric_data.index[i + 1]
+                current_value = metric_data[current_quarter]
+                previous_value = metric_data[previous_quarter]
+                
+                comparison = {
+                    'Current Quarter': current_quarter,
+                    'Previous Quarter': previous_quarter,
+                    'Change': current_value - previous_value,
+                    'Percentage Change': (current_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
+                }
+                
+                metric_comparisons.append(comparison)
+            
+            comparisons[metric] = metric_comparisons
     
     return comparisons
 
-# Function to compare annual data
+# Function to compare annual data for each year
 def compare_annual_data(df):
-    # Ensure columns are datetime
     df.columns = pd.to_datetime(df.columns, errors='coerce')
-    
-    # Drop columns that couldn't be parsed as dates
     df = df.loc[:, df.columns.notna()]
-    
+    df = df.sort_index(axis=1, ascending=False)
+
     # Print columns to debug
     st.write("Annual Columns available:", df.columns)
-    
-    if len(df.columns) < 2:
+
+    if df.shape[1] < 2:
         st.error("Not enough valid columns for comparison.")
         return None
     
-    # Sort columns by date
-    sorted_cols = sorted(df.columns, reverse=True)
-    st.write("Annual Sorted columns:", sorted_cols)
-    
-    latest_col = sorted_cols[0]
-    previous_col = sorted_cols[1]
-    
-    if latest_col not in df.columns or previous_col not in df.columns:
-        st.error("Columns for latest and previous years are missing.")
-        return None
-    
-    # Print index to debug
-    st.write("Annual Index available:", df.index)
-    
-    required_rows = ['Total Revenue', 'Gross Profit', 'Net Income']
-    available_rows = df.index.tolist()
-    
-    st.write("Annual Required rows:", required_rows)
-    st.write("Annual Available rows:", available_rows)
-    
-    if not all(row in available_rows for row in required_rows):
-        st.error("Required rows for comparison are missing in the annual data.")
-        return None
-    
-    latest_data = df.loc[required_rows, latest_col]
-    previous_data = df.loc[required_rows, previous_col]
-    
+    # Define metrics of interest
+    metrics = ['Total Revenue', 'Gross Profit', 'Net Income']
     comparisons = {}
-    for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
-        if row in latest_data.index and row in previous_data.index:
-            latest_value = latest_data[row]
-            previous_value = previous_data[row]
-            comparison = {
-                'Latest': latest_value,
-                'Previous': previous_value,
-                'Change': latest_value - previous_value,
-                'Percentage Change': (latest_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
-            }
-            comparisons[row] = comparison
+    
+    for metric in metrics:
+        if metric in df.index:
+            metric_data = df.loc[metric]
+            metric_comparisons = []
+            
+            for i in range(len(metric_data) - 1):
+                current_year = metric_data.index[i]
+                previous_year = metric_data.index[i + 1]
+                current_value = metric_data[current_year]
+                previous_value = metric_data[previous_year]
+                
+                comparison = {
+                    'Current Year': current_year,
+                    'Previous Year': previous_year,
+                    'Change': current_value - previous_value,
+                    'Percentage Change': (current_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
+                }
+                
+                metric_comparisons.append(comparison)
+            
+            comparisons[metric] = metric_comparisons
     
     return comparisons
 
 def main():
-    st.title('Stock Income Statement Comparison')
+    st.title('Stock Income Statement Comparative Analysis')
 
     stock_folder = '/mount/src/predictram-results-analyser/stock_folder'
     
@@ -188,17 +144,18 @@ def main():
                     
                     comparisons_quarterly = compare_quarterly_data(df_quarterly)
                     
-                    st.subheader('Comparison between Latest and Previous Quarter')
+                    st.subheader('Quarterly Data Comparison')
                     
                     if comparisons_quarterly:
-                        for metric, data in comparisons_quarterly.items():
+                        for metric, comparisons in comparisons_quarterly.items():
                             st.write(f"**{metric}**")
-                            st.write(f"Latest: {data['Latest']}")
-                            st.write(f"Previous: {data['Previous']}")
-                            st.write(f"Change: {data['Change']}")
-                            st.write(f"Percentage Change: {data['Percentage Change']:.2f}%")
+                            for comparison in comparisons:
+                                st.write(f"Current Quarter: {comparison['Current Quarter']}")
+                                st.write(f"Previous Quarter: {comparison['Previous Quarter']}")
+                                st.write(f"Change: {comparison['Change']}")
+                                st.write(f"Percentage Change: {comparison['Percentage Change']:.2f}%")
                     else:
-                        st.write("No relevant data found for comparison.")
+                        st.write("No relevant quarterly data found for comparison.")
                 
                 if 'Income Statement (Annual)' in sheets:
                     df_annual = sheets['Income Statement (Annual)']
@@ -207,17 +164,18 @@ def main():
                     
                     comparisons_annual = compare_annual_data(df_annual)
                     
-                    st.subheader('Comparison between Latest and Previous Year')
+                    st.subheader('Annual Data Comparison')
                     
                     if comparisons_annual:
-                        for metric, data in comparisons_annual.items():
+                        for metric, comparisons in comparisons_annual.items():
                             st.write(f"**{metric}**")
-                            st.write(f"Latest: {data['Latest']}")
-                            st.write(f"Previous: {data['Previous']}")
-                            st.write(f"Change: {data['Change']}")
-                            st.write(f"Percentage Change: {data['Percentage Change']:.2f}%")
+                            for comparison in comparisons:
+                                st.write(f"Current Year: {comparison['Current Year']}")
+                                st.write(f"Previous Year: {comparison['Previous Year']}")
+                                st.write(f"Change: {comparison['Change']}")
+                                st.write(f"Percentage Change: {comparison['Percentage Change']:.2f}%")
                     else:
-                        st.write("No relevant data found for comparison.")
+                        st.write("No relevant annual data found for comparison.")
                 
                 else:
                     st.error("The selected file does not contain the required sheets.")
