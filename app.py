@@ -28,7 +28,7 @@ st.title("Stock Comparative Analysis")
 selected_stock = st.selectbox("Select a stock symbol:", stock_symbols)
 
 # Filter data for the selected stock
-stock_data = data['Sheet1'][data['Sheet1']['Symbol'] == selected_stock]
+stock_data = data['Sheet1'][data['Sheet1']['symbol'] == selected_stock]
 
 if not stock_data.empty:
     industry = stock_data['Industry'].values[0]
