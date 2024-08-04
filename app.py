@@ -3,9 +3,7 @@ import pandas as pd
 import os
 
 def load_excel_files(stock_folder):
-    # Ensure the path is an absolute path
     stock_folder = os.path.abspath(stock_folder)
-    
     if not os.path.isdir(stock_folder):
         st.error(f"The path '{stock_folder}' is not a valid directory.")
         return []
@@ -18,10 +16,7 @@ def load_excel_files(stock_folder):
         return []
 
 def find_stock_file(stock_name, stock_folder):
-    # Load Excel files from the folder
     files = load_excel_files(stock_folder)
-    
-    # Search for the file with the stock name
     for file in files:
         if stock_name in file:
             return file
@@ -38,10 +33,7 @@ def read_excel_sheets(file_path):
         return {}
 
 def get_latest_and_previous_quarter_data(df):
-    # Ensure columns are treated as strings
     cols = df.columns.astype(str)
-    
-    # Sort columns in descending order
     sorted_cols = sorted(cols, reverse=True)
     
     if len(sorted_cols) < 2:
@@ -51,13 +43,12 @@ def get_latest_and_previous_quarter_data(df):
     latest_col = sorted_cols[0]
     previous_col = sorted_cols[1]
     
-    # Make sure columns exist in the DataFrame
     if latest_col not in df.columns or previous_col not in df.columns:
         st.error("Columns for latest and previous quarters are missing.")
         return None, None
     
-    latest_data = df[latest_col]
-    previous_data = df[previous_col]
+    latest_data = df[[latest_col]].loc[['Total Revenue', 'Gross Profit', 'Net Income']]
+    previous_data = df[[previous_col]].loc[['Total Revenue', 'Gross Profit', 'Net Income']]
     
     return latest_data, previous_data
 
@@ -70,8 +61,8 @@ def compare_quarterly_data(df):
     comparisons = {}
     for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
         if row in latest_data.index and row in previous_data.index:
-            latest_value = latest_data[row].values[0]
-            previous_value = previous_data[row].values[0]
+            latest_value = latest_data.loc[row].values[0]
+            previous_value = previous_data.loc[row].values[0]
             comparison = {
                 'Latest': latest_value,
                 'Previous': previous_value,
@@ -85,17 +76,12 @@ def compare_quarterly_data(df):
 def main():
     st.title('Stock Income Statement Comparison')
 
-    # Provide the path to the folder containing Excel files
     stock_folder = '/mount/src/predictram-results-analyser/stock_folder'
-
-    # Load Excel files from the folder
+    
     files = load_excel_files(stock_folder)
 
     if files:
-        # Extract stock names from file names (assuming file names are like 'ABB.xlsx')
         stock_names = [os.path.splitext(file)[0] for file in files]
-        
-        # Stock picker dropdown
         selected_stock = st.selectbox('Select a stock:', stock_names)
         
         if selected_stock:
@@ -105,7 +91,6 @@ def main():
                 file_path = os.path.join(stock_folder, stock_file)
                 st.write(f"Selected file path: {file_path}")
                 
-                # Read sheets from the selected Excel file
                 sheets = read_excel_sheets(file_path)
                 
                 if 'Income Statement (Quarterly)' in sheets:
