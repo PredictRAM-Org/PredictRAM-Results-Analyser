@@ -3,11 +3,12 @@ import pandas as pd
 import os
 
 def load_excel_files(stock_folder):
+    # Verify that the folder path is correct and not a file path
     if not stock_folder:
         st.error("Stock folder path is empty. Please enter a valid path.")
         return []
     
-    # Normalize the path
+    # Ensure the path is an absolute path
     stock_folder = os.path.abspath(stock_folder)
     
     if not os.path.isdir(stock_folder):
@@ -76,9 +77,10 @@ def main():
     stock_folder = st.text_input('Enter the path to the stock folder:', '')
 
     if stock_folder:
-        # Print the path for debugging
+        # Ensure path is correctly handled
         st.write(f"Stock folder path: {stock_folder}")
         
+        # Load Excel files from the provided folder path
         files = load_excel_files(stock_folder)
         
         if files:
@@ -88,6 +90,7 @@ def main():
                 file_path = os.path.join(stock_folder, selected_file)
                 st.write(f"Selected file path: {file_path}")
                 
+                # Read sheets from the selected Excel file
                 sheets = read_excel_sheets(file_path)
                 
                 if 'Income Statement (Quarterly)' in sheets:
