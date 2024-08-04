@@ -38,7 +38,10 @@ def read_excel_sheets(file_path):
         return {}
 
 def get_latest_and_previous_quarter_data(df):
-    cols = df.columns
+    # Ensure columns are treated as strings
+    cols = df.columns.astype(str)
+    
+    # Sort columns in descending order
     sorted_cols = sorted(cols, reverse=True)
     
     if len(sorted_cols) < 2:
@@ -47,6 +50,11 @@ def get_latest_and_previous_quarter_data(df):
     
     latest_col = sorted_cols[0]
     previous_col = sorted_cols[1]
+    
+    # Make sure columns exist in the DataFrame
+    if latest_col not in df.columns or previous_col not in df.columns:
+        st.error("Columns for latest and previous quarters are missing.")
+        return None, None
     
     latest_data = df[latest_col]
     previous_data = df[previous_col]
