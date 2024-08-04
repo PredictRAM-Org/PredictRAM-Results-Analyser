@@ -1,56 +1,78 @@
+import pandas as pd
 import streamlit as st
+import os
 
-# Load the data
-data = load_data('all_stocks_data.xlsx')
+# Function to load data from an Excel file
+def load_data('all_stocks_data.xlsx'):
+    try:
+        return pd.read_excel(file_path, sheet_name=None)
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return None
 
-# Extract stock symbols
-stocks = list(data.keys())
+# Function to get stock data from the Excel sheet
+def get_stock_data(data, stock_symbol):
+    return data.get(stock_symbol)
 
-# Streamlit app
-st.title("Stock Comparative Analysis")
+# Function to calculate percentage change
+def calculate_percentage_change(current, previous):
+    return ((current - previous) / previous) * 100 if previous != 0 else float('inf')
 
-# Stock selection
-selected_stock = st.selectbox("Select a stock:", stocks)
+# Function to display comparative analysis
+def display_comparative_analysis(stock_data, stock_symbol):
+    st.write(f"### Comparative Analysis for {stock_symbol}")
 
-# Display industry information
-stock_data = data[selected_stock]
-industry = stock_data.get('Industry', 'Unknown')
-st.write(f"**Industry:** {industry}")
+    industry = stock_data.get('Industry')
+    st.write(f"**Industry:** {industry}")
 
-# Comparative analysis
-st.write("### Income Statement Comparative Analysis")
+    income_statement_quarterly = stock_data.get('Income Statement (Quarterly)')
+    income_statement_annual = stock_data.get('Income Statement (Annual)')
 
-# Extract income statements
-income_statement_quarterly = stock_data.get('Income Statement (Quarterly)')
-income_statement_annual = stock_data.get('Income Statement (Annual)')
+    # Get the last quarter and last year data
+    last_quarter = income_statement_quarterly.iloc[-1]
+    last_year_quarter = income_statement_quarterly.iloc[-5]  # Assuming quarterly data is available for 5 quarters
+    last_year = income_statement_annual.iloc[-1]
 
-def compare_income_statements(income_statement, period1, period2):
-    period1_data = income_statement.get(period1, {})
-    period2_data = income_statement.get(period2, {})
-    
-    comparison = {}
-    for key in period1_data.keys():
-        value1 = period1_data.get(key, 0)
-        value2 = period2_data.get(key, 0)
-        comparison[key] = (value2 - value1) / value1 * 100 if value1 else 0
-    
-    return comparison
+    st.write("#### Income Statement (Quarterly) Comparison")
+    for key in last_quarter.keys():
+        current_value = last_quarter[key]
+        previous_value = last_year_quarter[key]
+        change = calculate_percentage_change(current_value, previous_value)
+        st.write(f"{key}: {current_value} (Change: {change:.2f}%)")
 
-# Get last quarter and last year data
-if income_statement_quarterly:
-    quarters = list(income_statement_quarterly.keys())
-    last_quarter = quarters[0]
-    previous_quarter = quarters[1]
-    
-    st.write(f"**Comparison from Last Quarter ({previous_quarter.date()} to {last_quarter.date()})**")
-    quarterly_comparison = compare_income_statements(income_statement_quarterly, previous_quarter, last_quarter)
-    st.write(pd.DataFrame(quarterly_comparison, index=['Change (%)']).transpose())
+    st.write("#### Income Statement (Annual) Comparison")
+    for key in last_quarter.keys():
+        current_value = last_quarter[key]
+        previous_value = last_year[key]
+        change = calculate_percentage_change(current_value, previous_value)
+        st.write(f"{key}: {current_value} (Change: {change:.2f}%)")
 
-if income_statement_annual:
-    years = list(income_statement_annual.keys())
-    last_year = years[0]
-    previous_year = years[1]
-    
-    st.write(f"**Comparison from Last Year ({previous_year.date()} to {last_year.date()})**")
-    annual_comparison = compare_income_statements(income_statement_annual, previous_year, last_year)
-    st.write(pd.DataFrame(annual_comparison, index=['Change (%)']).transpose())
+# Main function to run the Streamlit app
+def main():
+    st.title("Stock Comparative Analysis")
+
+    # Check if the file exists
+    file_path = 'all_stocks_data.xlsx'
+    if not os.path.exists(file_path):
+        st.error(f"The file {file_path} does not exist.")
+        return
+
+    # Load the data
+    data = load_data(file_path)
+    if data is None:
+        return
+
+    # Select a stock
+    stock_symbol = st.selectbox("Select a Stock", options=list(data.keys()))
+
+    # Get the stock data
+    stock_data = get_stock_data(data, stock_symbol)
+
+    # Display comparative analysis
+    if stock_data is not None:
+        display_comparative_analysis(stock_data, stock_symbol)
+    else:
+        st.write("No data available for the selected stock.")
+
+if __name__ == "__main__":
+    main()
