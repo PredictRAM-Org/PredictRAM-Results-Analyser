@@ -60,8 +60,16 @@ def get_latest_and_previous_quarter_data(df):
         st.error("Columns for latest and previous quarters are missing.")
         return None, None
     
-    latest_data = df[[latest_col]].loc[['Total Revenue', 'Gross Profit', 'Net Income']]
-    previous_data = df[[previous_col]].loc[['Total Revenue', 'Gross Profit', 'Net Income']]
+    # Check if the required rows are present in the DataFrame
+    required_rows = ['Total Revenue', 'Gross Profit', 'Net Income']
+    available_rows = df.index.tolist()
+    
+    if not all(row in available_rows for row in required_rows):
+        st.error("Required rows for comparison are missing in the data.")
+        return None, None
+    
+    latest_data = df[[latest_col]].loc[required_rows]
+    previous_data = df[[previous_col]].loc[required_rows]
     
     return latest_data, previous_data
 
