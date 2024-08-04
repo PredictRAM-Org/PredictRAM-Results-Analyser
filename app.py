@@ -1,151 +1,103 @@
-import streamlit as st
-import pandas as pd
 import os
+import pandas as pd
 import matplotlib.pyplot as plt
+import streamlit as st
 
-# Function to load Excel files from a given directory
-def load_excel_files(stock_folder):
-    stock_folder = os.path.abspath(stock_folder)
-    if not os.path.isdir(stock_folder):
-        st.error(f"The path '{stock_folder}' is not a valid directory.")
-        return []
+# Function to load Excel data from the stock folder
+def load_stock_data(stock_folder, stock_name):
+    # Construct the file path
+    file_path = os.path.join(stock_folder, f'{stock_name}.xlsx')
+    if not os.path.isfile(file_path):
+        st.error(f"File {file_path} not found.")
+        return None, None
     
+    # Load data from the Excel file
+    xl = pd.ExcelFile(file_path)
+    
+    # Load sheets
     try:
-        files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
-        return files
-    except Exception as e:
-        st.error(f"Error loading files: {e}")
-        return []
+        quarterly_df = xl.parse('Income Statement (Quarterly)')
+        annual_df = xl.parse('Income Statement (Annual)')
+    except ValueError as e:
+        st.error(f"Error loading sheets: {e}")
+        return None, None
 
-# Function to find the Excel file for the selected stock
-def find_stock_file(stock_name, stock_folder):
-    files = load_excel_files(stock_folder)
-    for file in files:
-        if stock_name in file:
-            return file
-    return None
+    return quarterly_df, annual_df
 
-# Function to read all sheets from an Excel file
-def read_excel_sheets(file_path):
-    try:
-        xls = pd.ExcelFile(file_path)
-        sheet_names = xls.sheet_names
-        sheets = {sheet: pd.read_excel(xls, sheet_name=sheet) for sheet in sheet_names}
-        return sheets
-    except Exception as e:
-        st.error(f"Error reading Excel file: {e}")
-        return {}
-
-# Function to compare data for each metric
-def compare_data(df, metrics):
-    df.columns = pd.to_datetime(df.columns, errors='coerce')
-    df = df.loc[:, df.columns.notna()]
-    df = df.sort_index(axis=1, ascending=False)
-
-    comparisons = {}
+# Function to calculate percentage change
+def calculate_percentage_change(df):
+    # Ensure the metric row is set as the index
+    df.set_index('Metric', inplace=True)
     
-    for metric in metrics:
-        if metric in df.index:
-            metric_data = df.loc[metric]
-            metric_comparisons = []
-            
-            for i in range(len(metric_data) - 1):
-                current_period = metric_data.index[i]
-                previous_period = metric_data.index[i + 1]
-                current_value = metric_data[current_period]
-                previous_value = metric_data[previous_period]
-                
-                comparison = {
-                    'Period': current_period,
-                    'Previous Period': previous_period,
-                    'Change': current_value - previous_value,
-                    'Percentage Change': (current_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
-                }
-                
-                metric_comparisons.append(comparison)
-            
-            comparisons[metric] = metric_comparisons
-    
-    return comparisons
+    # Calculate percentage change
+    percentage_change = df.pct_change(axis=1) * 100
+    return percentage_change
 
-# Function to plot data
-def plot_comparisons(comparisons, metric_name):
-    df_comparison = pd.DataFrame(comparisons[metric_name])
-    if df_comparison.empty:
-        st.write(f"No data available for {metric_name} comparisons.")
-        return
-    
-    df_comparison.set_index('Period', inplace=True)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    df_comparison[['Change', 'Percentage Change']].plot(kind='bar', ax=ax)
-    plt.title(f'{metric_name} Comparison')
-    plt.xlabel('Period')
-    plt.ylabel('Value')
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    st.pyplot(fig)
-
+# Main function to display the app
 def main():
-    st.title('Stock Income Statement Comparative Analysis')
+    st.title("Stock Data Analysis")
 
-    stock_folder = '/mount/src/predictram-results-analyser/stock_folder'
+    # Directory containing stock files
+    stock_folder = 'path/to/stock_folder'  # Update with the actual path
+
+    # List stock files
+    stock_files = [f.replace('.xlsx', '') for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
     
-    files = load_excel_files(stock_folder)
+    # User selects a stock
+    stock_name = st.selectbox("Select a Stock", stock_files)
 
-    if files:
-        stock_names = [os.path.splitext(file)[0] for file in files]
-        selected_stock = st.selectbox('Select a stock:', stock_names)
+    if stock_name:
+        # Load data
+        quarterly_df, annual_df = load_stock_data(stock_folder, stock_name)
         
-        if selected_stock:
-            stock_file = find_stock_file(selected_stock, stock_folder)
+        if quarterly_df is not None and annual_df is not None:
+            st.subheader("Quarterly Income Statement Data")
+            st.dataframe(quarterly_df)
             
-            if stock_file:
-                file_path = os.path.join(stock_folder, stock_file)
-                st.write(f"Selected file path: {file_path}")
+            st.subheader("Annual Income Statement Data")
+            st.dataframe(annual_df)
+
+            # Process quarterly data
+            if 'Metric' in quarterly_df.columns:
+                quarterly_percentage_change = calculate_percentage_change(quarterly_df)
                 
-                sheets = read_excel_sheets(file_path)
+                st.subheader("Quarterly Data Percentage Change")
+                st.dataframe(quarterly_percentage_change)
+
+                # Plotting quarterly percentage changes
+                fig, ax = plt.subplots(figsize=(12, 8))
+                for metric in quarterly_percentage_change.index:
+                    ax.plot(quarterly_percentage_change.columns, quarterly_percentage_change.loc[metric], marker='o', label=metric)
                 
-                if 'Income Statement (Quarterly)' in sheets:
-                    df_quarterly = sheets['Income Statement (Quarterly)']
-                    st.subheader("Quarterly Data")
-                    st.write(df_quarterly)
-                    
-                    metrics = ['Total Revenue', 'Operating Expense', 'Operating Income', 'Net Income']
-                    comparisons_quarterly = compare_data(df_quarterly, metrics)
-                    
-                    st.subheader('Quarterly Data Comparison')
-                    
-                    if comparisons_quarterly:
-                        for metric, comparisons in comparisons_quarterly.items():
-                            st.write(f"**{metric}**")
-                            st.write(pd.DataFrame(comparisons))
-                            plot_comparisons(comparisons, metric)
-                    else:
-                        st.write("No relevant quarterly data found for comparison.")
+                ax.set_title('Quarterly Percentage Change')
+                ax.set_xlabel('Quarter')
+                ax.set_ylabel('Percentage Change (%)')
+                ax.legend(loc='best')
+                ax.grid(True)
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                st.pyplot(fig)
+
+            # Process annual data
+            if 'Metric' in annual_df.columns:
+                annual_percentage_change = calculate_percentage_change(annual_df)
                 
-                if 'Income Statement (Annual)' in sheets:
-                    df_annual = sheets['Income Statement (Annual)']
-                    st.subheader("Annual Data")
-                    st.write(df_annual)
-                    
-                    comparisons_annual = compare_data(df_annual, metrics)
-                    
-                    st.subheader('Annual Data Comparison')
-                    
-                    if comparisons_annual:
-                        for metric, comparisons in comparisons_annual.items():
-                            st.write(f"**{metric}**")
-                            st.write(pd.DataFrame(comparisons))
-                            plot_comparisons(comparisons, metric)
-                    else:
-                        st.write("No relevant annual data found for comparison.")
+                st.subheader("Annual Data Percentage Change")
+                st.dataframe(annual_percentage_change)
+
+                # Plotting annual percentage changes
+                fig, ax = plt.subplots(figsize=(12, 8))
+                for metric in annual_percentage_change.index:
+                    ax.plot(annual_percentage_change.columns, annual_percentage_change.loc[metric], marker='o', label=metric)
                 
-                else:
-                    st.error("The selected file does not contain the required sheets.")
-            else:
-                st.warning(f"No file found for stock name '{selected_stock}' in the specified folder.")
-    else:
-        st.warning("No Excel files found in the specified folder.")
+                ax.set_title('Annual Percentage Change')
+                ax.set_xlabel('Year')
+                ax.set_ylabel('Percentage Change (%)')
+                ax.legend(loc='best')
+                ax.grid(True)
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
