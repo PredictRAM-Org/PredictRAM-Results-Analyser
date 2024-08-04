@@ -1,68 +1,79 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
+import json
+from datetime import datetime
 
-# Function to load data from the Excel file
-@st.cache_data
-def load_data(file_path):
-    return pd.read_excel(file_path, sheet_name=None)
+# Function to load data
+def load_data(filename):
+    return pd.read_excel(filename, sheet_name=None)
 
-# Function to perform comparative analysis between two periods
-def comparative_analysis(df, column_name):
-    last_period = df[column_name].iloc[-1]
-    previous_period = df[column_name].iloc[-2]
-    
-    analysis = (last_period - previous_period) / previous_period * 100
-    return last_period, previous_period, analysis
+# Function to calculate the percentage change
+def calculate_percentage_change(old_value, new_value):
+    if old_value == 0:
+        return float('inf') if new_value != 0 else 0
+    return ((new_value - old_value) / old_value) * 100
 
-# Load the data
-file_path = 'all_stocks_data.xlsx'
-data = load_data(file_path)
+# Load data
+data = load_data('all_stocks_data.xlsx')
 
-# Extract the list of stock symbols
-stock_symbols = data['Sheet1']['symbol'].unique()
+# Extract the relevant sheets
+stock_data = data.get('Stock Data')  # Replace with the actual sheet name if different
 
 # Streamlit UI
-st.title("Stock Comparative Analysis")
+st.title('Stock Comparative Analysis')
 
-# Stock symbol selection
-selected_stock = st.selectbox("Select a stock symbol:", stock_symbols)
+# Select stock
+stock_symbols = stock_data['symbol'].unique()
+selected_stock = st.selectbox('Select a stock', stock_symbols)
 
 # Filter data for the selected stock
-stock_data = data['Sheet1'][data['Sheet1']['symbol'] == selected_stock]
+selected_data = stock_data[stock_data['symbol'] == selected_stock].iloc[0]
+industry = selected_data['industry']
+st.write(f'Industry: {industry}')
 
-if not stock_data.empty:
-    industry = stock_data['industry'].values[0]
-    st.write(f"**Industry:** {industry}")
+# Extract Income Statement data
+income_statement_quarterly = json.loads(selected_data['Income Statement (Quarterly)'])
+income_statement_annual = json.loads(selected_data['Income Statement (Annual)'])
 
-    # Display comparative analysis for Income Statement (Quarterly)
-    if 'Income Statement (Quarterly)' in stock_data.columns:
-        st.subheader("Income Statement (Quarterly) Comparative Analysis")
-        income_statement_quarterly = stock_data['Income Statement (Quarterly)'].iloc[0]
+# Convert timestamps to datetime
+def parse_data(data):
+    parsed_data = {}
+    for date_str, metrics in data.items():
+        date = pd.to_datetime(date_str)
+        parsed_data[date] = metrics
+    return parsed_data
 
-        # Convert string to dictionary
-        income_statement_quarterly_dict = eval(income_statement_quarterly)
-        df_quarterly = pd.DataFrame.from_dict(income_statement_quarterly_dict, orient='index')
+income_statement_quarterly = parse_data(income_statement_quarterly)
+income_statement_annual = parse_data(income_statement_annual)
 
-        # Display the last quarter and previous quarter data with analysis
-        st.write("### Quarterly Data")
-        for column in df_quarterly.columns:
-            last_qtr, prev_qtr, analysis_qtr = comparative_analysis(df_quarterly, column)
-            st.write(f"{column}: Last Quarter: {last_qtr}, Previous Quarter: {prev_qtr}, Change: {analysis_qtr:.2f}%")
+# Get the latest and previous periods for comparison
+def get_latest_and_previous(data):
+    dates = sorted(data.keys())
+    if len(dates) < 2:
+        return None, None
+    latest = dates[-1]
+    previous = dates[-2]
+    return data[latest], data[previous]
 
-    # Display comparative analysis for Income Statement (Annual)
-    if 'Income Statement (Annual)' in stock_data.columns:
-        st.subheader("Income Statement (Annual) Comparative Analysis")
-        income_statement_annual = stock_data['Income Statement (Annual)'].iloc[0]
+latest_quarterly, previous_quarterly = get_latest_and_previous(income_statement_quarterly)
+latest_annual, previous_annual = get_latest_and_previous(income_statement_annual)
 
-        # Convert string to dictionary
-        income_statement_annual_dict = eval(income_statement_annual)
-        df_annual = pd.DataFrame.from_dict(income_statement_annual_dict, orient='index')
+# Display comparative analysis
+def display_comparative_analysis(latest, previous, period):
+    if latest and previous:
+        st.subheader(f'Comparative Analysis - {period}')
+        for key in latest.keys():
+            latest_value = latest.get(key, 'N/A')
+            previous_value = previous.get(key, 'N/A')
+            if isinstance(latest_value, (int, float)) and isinstance(previous_value, (int, float)):
+                change = calculate_percentage_change(previous_value, latest_value)
+                st.write(f'{key}: {latest_value} (Change: {change:.2f}%)')
+            else:
+                st.write(f'{key}: {latest_value} (No previous data)')
 
-        # Display the last year and previous year data with analysis
-        st.write("### Annual Data")
-        for column in df_annual.columns:
-            last_year, prev_year, analysis_year = comparative_analysis(df_annual, column)
-            st.write(f"{column}: Last Year: {last_year}, Previous Year: {prev_year}, Change: {analysis_year:.2f}%")
+st.subheader('Quarterly Income Statement Comparison')
+display_comparative_analysis(latest_quarterly, previous_quarterly, 'Quarterly Income Statement')
 
-else:
-    st.write("No data available for the selected stock.")
+st.subheader('Annual Income Statement Comparison')
+display_comparative_analysis(latest_annual, previous_annual, 'Annual Income Statement')
+
