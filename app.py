@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
 
 # Function to load Excel files from a given directory
 def load_excel_files(stock_folder):
@@ -35,21 +36,12 @@ def read_excel_sheets(file_path):
         st.error(f"Error reading Excel file: {e}")
         return {}
 
-# Function to compare quarterly data for each year
-def compare_quarterly_data(df):
+# Function to compare data for each metric
+def compare_data(df, metrics):
     df.columns = pd.to_datetime(df.columns, errors='coerce')
     df = df.loc[:, df.columns.notna()]
     df = df.sort_index(axis=1, ascending=False)
 
-    # Print columns to debug
-    st.write("Quarterly Columns available:", df.columns)
-
-    if df.shape[1] < 2:
-        st.error("Not enough valid columns for comparison.")
-        return None
-    
-    # Define metrics of interest
-    metrics = ['Total Revenue', 'Gross Profit', 'Net Income']
     comparisons = {}
     
     for metric in metrics:
@@ -58,14 +50,14 @@ def compare_quarterly_data(df):
             metric_comparisons = []
             
             for i in range(len(metric_data) - 1):
-                current_quarter = metric_data.index[i]
-                previous_quarter = metric_data.index[i + 1]
-                current_value = metric_data[current_quarter]
-                previous_value = metric_data[previous_quarter]
+                current_period = metric_data.index[i]
+                previous_period = metric_data.index[i + 1]
+                current_value = metric_data[current_period]
+                previous_value = metric_data[previous_period]
                 
                 comparison = {
-                    'Current Quarter': current_quarter,
-                    'Previous Quarter': previous_quarter,
+                    'Period': current_period,
+                    'Previous Period': previous_period,
                     'Change': current_value - previous_value,
                     'Percentage Change': (current_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
                 }
@@ -76,46 +68,17 @@ def compare_quarterly_data(df):
     
     return comparisons
 
-# Function to compare annual data for each year
-def compare_annual_data(df):
-    df.columns = pd.to_datetime(df.columns, errors='coerce')
-    df = df.loc[:, df.columns.notna()]
-    df = df.sort_index(axis=1, ascending=False)
-
-    # Print columns to debug
-    st.write("Annual Columns available:", df.columns)
-
-    if df.shape[1] < 2:
-        st.error("Not enough valid columns for comparison.")
-        return None
-    
-    # Define metrics of interest
-    metrics = ['Total Revenue', 'Gross Profit', 'Net Income']
-    comparisons = {}
-    
-    for metric in metrics:
-        if metric in df.index:
-            metric_data = df.loc[metric]
-            metric_comparisons = []
-            
-            for i in range(len(metric_data) - 1):
-                current_year = metric_data.index[i]
-                previous_year = metric_data.index[i + 1]
-                current_value = metric_data[current_year]
-                previous_value = metric_data[previous_year]
-                
-                comparison = {
-                    'Current Year': current_year,
-                    'Previous Year': previous_year,
-                    'Change': current_value - previous_value,
-                    'Percentage Change': (current_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
-                }
-                
-                metric_comparisons.append(comparison)
-            
-            comparisons[metric] = metric_comparisons
-    
-    return comparisons
+# Function to plot data
+def plot_comparisons(comparisons, metric_name):
+    df_comparison = pd.DataFrame(comparisons[metric_name])
+    df_comparison.set_index('Period', inplace=True)
+    df_comparison.plot(kind='bar', figsize=(10, 6))
+    plt.title(f'{metric_name} Comparison')
+    plt.xlabel('Period')
+    plt.ylabel('Value')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    st.pyplot()
 
 def main():
     st.title('Stock Income Statement Comparative Analysis')
@@ -142,18 +105,16 @@ def main():
                     st.subheader("Quarterly Data")
                     st.write(df_quarterly)
                     
-                    comparisons_quarterly = compare_quarterly_data(df_quarterly)
+                    metrics = ['Total Revenue', 'Operating Expense', 'Operating Income', 'Net Income']
+                    comparisons_quarterly = compare_data(df_quarterly, metrics)
                     
                     st.subheader('Quarterly Data Comparison')
                     
                     if comparisons_quarterly:
                         for metric, comparisons in comparisons_quarterly.items():
                             st.write(f"**{metric}**")
-                            for comparison in comparisons:
-                                st.write(f"Current Quarter: {comparison['Current Quarter']}")
-                                st.write(f"Previous Quarter: {comparison['Previous Quarter']}")
-                                st.write(f"Change: {comparison['Change']}")
-                                st.write(f"Percentage Change: {comparison['Percentage Change']:.2f}%")
+                            st.write(pd.DataFrame(comparisons))
+                            plot_comparisons(comparisons, metric)
                     else:
                         st.write("No relevant quarterly data found for comparison.")
                 
@@ -162,18 +123,15 @@ def main():
                     st.subheader("Annual Data")
                     st.write(df_annual)
                     
-                    comparisons_annual = compare_annual_data(df_annual)
+                    comparisons_annual = compare_data(df_annual, metrics)
                     
                     st.subheader('Annual Data Comparison')
                     
                     if comparisons_annual:
                         for metric, comparisons in comparisons_annual.items():
                             st.write(f"**{metric}**")
-                            for comparison in comparisons:
-                                st.write(f"Current Year: {comparison['Current Year']}")
-                                st.write(f"Previous Year: {comparison['Previous Year']}")
-                                st.write(f"Change: {comparison['Change']}")
-                                st.write(f"Percentage Change: {comparison['Percentage Change']:.2f}%")
+                            st.write(pd.DataFrame(comparisons))
+                            plot_comparisons(comparisons, metric)
                     else:
                         st.write("No relevant annual data found for comparison.")
                 
