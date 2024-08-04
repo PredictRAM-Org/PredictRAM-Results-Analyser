@@ -3,21 +3,37 @@ import pandas as pd
 import os
 
 def load_excel_files(stock_folder):
-    # Load Excel files from the specified folder
-    files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
-    return files
+    if not stock_folder:
+        st.error("Stock folder path is empty. Please enter a valid path.")
+        return []
+    if not os.path.isdir(stock_folder):
+        st.error(f"The path '{stock_folder}' is not a valid directory.")
+        return []
+    
+    try:
+        files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
+        return files
+    except Exception as e:
+        st.error(f"Error loading files: {e}")
+        return []
 
 def read_excel_sheets(file_path):
-    # Read all sheets from the Excel file
-    xls = pd.ExcelFile(file_path)
-    sheet_names = xls.sheet_names
-    sheets = {sheet: pd.read_excel(xls, sheet_name=sheet) for sheet in sheet_names}
-    return sheets
+    try:
+        xls = pd.ExcelFile(file_path)
+        sheet_names = xls.sheet_names
+        sheets = {sheet: pd.read_excel(xls, sheet_name=sheet) for sheet in sheet_names}
+        return sheets
+    except Exception as e:
+        st.error(f"Error reading Excel file: {e}")
+        return {}
 
 def get_latest_and_previous_quarter_data(df):
-    # Extract latest and previous quarter columns
     cols = df.columns
     sorted_cols = sorted(cols, reverse=True)
+    
+    if len(sorted_cols) < 2:
+        st.error("Not enough columns to compare latest and previous quarters.")
+        return None, None
     
     latest_col = sorted_cols[0]
     previous_col = sorted_cols[1]
@@ -28,8 +44,10 @@ def get_latest_and_previous_quarter_data(df):
     return latest_data, previous_data
 
 def compare_quarterly_data(df):
-    # Compare Total Revenue, Gross Profit, and Net Income between latest and previous quarters
     latest_data, previous_data = get_latest_and_previous_quarter_data(df)
+    
+    if latest_data is None or previous_data is None:
+        return {}
     
     comparisons = {}
     for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
@@ -54,26 +72,32 @@ def main():
     if stock_folder:
         files = load_excel_files(stock_folder)
         
-        selected_file = st.selectbox('Select an Excel file:', files)
-        
-        if selected_file:
-            file_path = os.path.join(stock_folder, selected_file)
-            sheets = read_excel_sheets(file_path)
+        if files:
+            selected_file = st.selectbox('Select an Excel file:', files)
             
-            if 'Income Statement (Quarterly)' in sheets:
-                df_quarterly = sheets['Income Statement (Quarterly)']
-                comparisons = compare_quarterly_data(df_quarterly)
+            if selected_file:
+                file_path = os.path.join(stock_folder, selected_file)
+                sheets = read_excel_sheets(file_path)
                 
-                st.subheader('Comparison between Latest and Previous Quarter')
-                
-                for metric, data in comparisons.items():
-                    st.write(f"**{metric}**")
-                    st.write(f"Latest: {data['Latest']}")
-                    st.write(f"Previous: {data['Previous']}")
-                    st.write(f"Change: {data['Change']}")
-                    st.write(f"Percentage Change: {data['Percentage Change']:.2f}%")
-            else:
-                st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
+                if 'Income Statement (Quarterly)' in sheets:
+                    df_quarterly = sheets['Income Statement (Quarterly)']
+                    comparisons = compare_quarterly_data(df_quarterly)
+                    
+                    st.subheader('Comparison between Latest and Previous Quarter')
+                    
+                    if comparisons:
+                        for metric, data in comparisons.items():
+                            st.write(f"**{metric}**")
+                            st.write(f"Latest: {data['Latest']}")
+                            st.write(f"Previous: {data['Previous']}")
+                            st.write(f"Change: {data['Change']}")
+                            st.write(f"Percentage Change: {data['Percentage Change']:.2f}%")
+                    else:
+                        st.write("No relevant data found for comparison.")
+                else:
+                    st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
+        else:
+            st.error("No Excel files found in the specified folder.")
     else:
         st.info('Please enter the path to the stock folder.')
 
