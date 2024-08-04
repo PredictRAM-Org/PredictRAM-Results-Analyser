@@ -31,7 +31,7 @@ selected_stock = st.selectbox("Select a stock symbol:", stock_symbols)
 stock_data = data['Sheet1'][data['Sheet1']['symbol'] == selected_stock]
 
 if not stock_data.empty:
-    industry = stock_data['Industry'].values[0]
+    industry = stock_data['industry'].values[0]
     st.write(f"**Industry:** {industry}")
 
     # Display comparative analysis for Income Statement (Quarterly)
