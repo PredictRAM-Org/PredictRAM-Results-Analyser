@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
 
 # Function to load Excel files from a given directory
 def load_excel_files(stock_folder):
@@ -44,6 +43,9 @@ def get_latest_and_previous_quarter_data(df):
     # Drop columns that couldn't be parsed as dates
     df = df.loc[:, df.columns.notna()]
     
+    # Print columns to debug
+    st.write("Columns available:", df.columns)
+    
     # Check if there are at least two valid dates
     if len(df.columns) < 2:
         st.error("Not enough valid columns for comparison.")
@@ -51,6 +53,7 @@ def get_latest_and_previous_quarter_data(df):
     
     # Sort columns by date
     sorted_cols = sorted(df.columns, reverse=True)
+    st.write("Sorted columns:", sorted_cols)
     
     # Identify latest and previous columns
     latest_col = sorted_cols[0]
@@ -60,16 +63,22 @@ def get_latest_and_previous_quarter_data(df):
         st.error("Columns for latest and previous quarters are missing.")
         return None, None
     
+    # Print index to debug
+    st.write("Index available:", df.index)
+    
     # Check if the required rows are present in the DataFrame
     required_rows = ['Total Revenue', 'Gross Profit', 'Net Income']
     available_rows = df.index.tolist()
+    
+    st.write("Required rows:", required_rows)
+    st.write("Available rows:", available_rows)
     
     if not all(row in available_rows for row in required_rows):
         st.error("Required rows for comparison are missing in the data.")
         return None, None
     
-    latest_data = df[[latest_col]].loc[required_rows]
-    previous_data = df[[previous_col]].loc[required_rows]
+    latest_data = df.loc[required_rows, latest_col]
+    previous_data = df.loc[required_rows, previous_col]
     
     return latest_data, previous_data
 
@@ -83,8 +92,8 @@ def compare_quarterly_data(df):
     comparisons = {}
     for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
         if row in latest_data.index and row in previous_data.index:
-            latest_value = latest_data.loc[row].values[0]
-            previous_value = previous_data.loc[row].values[0]
+            latest_value = latest_data[row]
+            previous_value = previous_data[row]
             comparison = {
                 'Latest': latest_value,
                 'Previous': previous_value,
@@ -117,6 +126,9 @@ def main():
                 
                 if 'Income Statement (Quarterly)' in sheets:
                     df_quarterly = sheets['Income Statement (Quarterly)']
+                    st.write("Quarterly Data:")
+                    st.write(df_quarterly.head())
+                    
                     comparisons = compare_quarterly_data(df_quarterly)
                     
                     st.subheader('Comparison between Latest and Previous Quarter')
