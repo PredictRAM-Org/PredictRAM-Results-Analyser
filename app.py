@@ -1,62 +1,68 @@
 import streamlit as st
 import pandas as pd
 
-# Load the data
+# Function to load data from the Excel file
 @st.cache_data
-def load_data(filepath):
-    return pd.read_excel(filepath, sheet_name=None)
+def load_data(file_path):
+    return pd.read_excel(file_path, sheet_name=None)
 
-# Select stock and industry
-def get_stock_and_industry(stock_data):
-    stocks = list(stock_data.keys())
-    selected_stock = st.selectbox("Select a stock:", stocks)
-    industry = stock_data[selected_stock].get('Industry')
-    return selected_stock, industry
-
-# Compare quarterly and annual income statements
-def compare_income_statements(stock_data, selected_stock):
-    income_statement_quarterly = stock_data[selected_stock].get('Income Statement (Quarterly)', {})
-    income_statement_annual = stock_data[selected_stock].get('Income Statement (Annual)', {})
-
-    if not income_statement_quarterly or not income_statement_annual:
-        st.warning("Income statement data is missing.")
-        return
-
-    last_quarter = max(income_statement_quarterly.keys())
-    last_year = max(income_statement_annual.keys())
-
-    last_quarter_data = income_statement_quarterly[last_quarter]
-    last_year_data = income_statement_annual[last_year]
-
-    st.write(f"### Comparative Analysis for {selected_stock}")
-    st.write(f"#### Last Quarter ({last_quarter}) vs Last Year ({last_year})")
-
-    comparison_data = []
-    for key in last_quarter_data:
-        if key in last_year_data:
-            quarterly_value = last_quarter_data[key]
-            annual_value = last_year_data[key]
-            change = quarterly_value - annual_value
-            percent_change = (change / annual_value) * 100 if annual_value != 0 else 0
-            comparison_data.append([key, quarterly_value, annual_value, change, percent_change])
-
-    comparison_df = pd.DataFrame(comparison_data, columns=["Parameter", "Last Quarter Value", "Last Year Value", "Change", "Percent Change"])
-    st.dataframe(comparison_df)
-
-# Main function
-def main():
-    st.title("Stock Comparative Analysis")
-    filepath = 'all_stocks_data.xlsx'
-    stock_data = load_data(filepath)
+# Function to perform comparative analysis between two periods
+def comparative_analysis(df, column_name):
+    last_period = df[column_name].iloc[-1]
+    previous_period = df[column_name].iloc[-2]
     
-    if stock_data:
-        selected_stock, industry = get_stock_and_industry(stock_data)
-        st.write(f"Selected Stock: {selected_stock}")
-        st.write(f"Industry: {industry}")
+    analysis = (last_period - previous_period) / previous_period * 100
+    return last_period, previous_period, analysis
 
-        compare_income_statements(stock_data, selected_stock)
-    else:
-        st.error("Failed to load stock data.")
+# Load the data
+file_path = 'all_stocks_data.xlsx'
+data = load_data(file_path)
 
-if __name__ == "__main__":
-    main()
+# Extract the list of stock symbols
+stock_symbols = data['Sheet1']['Symbol'].unique()
+
+# Streamlit UI
+st.title("Stock Comparative Analysis")
+
+# Stock symbol selection
+selected_stock = st.selectbox("Select a stock symbol:", stock_symbols)
+
+# Filter data for the selected stock
+stock_data = data['Sheet1'][data['Sheet1']['Symbol'] == selected_stock]
+
+if not stock_data.empty:
+    industry = stock_data['Industry'].values[0]
+    st.write(f"**Industry:** {industry}")
+
+    # Display comparative analysis for Income Statement (Quarterly)
+    if 'Income Statement (Quarterly)' in stock_data.columns:
+        st.subheader("Income Statement (Quarterly) Comparative Analysis")
+        income_statement_quarterly = stock_data['Income Statement (Quarterly)'].iloc[0]
+
+        # Convert string to dictionary
+        income_statement_quarterly_dict = eval(income_statement_quarterly)
+        df_quarterly = pd.DataFrame.from_dict(income_statement_quarterly_dict, orient='index')
+
+        # Display the last quarter and previous quarter data with analysis
+        st.write("### Quarterly Data")
+        for column in df_quarterly.columns:
+            last_qtr, prev_qtr, analysis_qtr = comparative_analysis(df_quarterly, column)
+            st.write(f"{column}: Last Quarter: {last_qtr}, Previous Quarter: {prev_qtr}, Change: {analysis_qtr:.2f}%")
+
+    # Display comparative analysis for Income Statement (Annual)
+    if 'Income Statement (Annual)' in stock_data.columns:
+        st.subheader("Income Statement (Annual) Comparative Analysis")
+        income_statement_annual = stock_data['Income Statement (Annual)'].iloc[0]
+
+        # Convert string to dictionary
+        income_statement_annual_dict = eval(income_statement_annual)
+        df_annual = pd.DataFrame.from_dict(income_statement_annual_dict, orient='index')
+
+        # Display the last year and previous year data with analysis
+        st.write("### Annual Data")
+        for column in df_annual.columns:
+            last_year, prev_year, analysis_year = comparative_analysis(df_annual, column)
+            st.write(f"{column}: Last Year: {last_year}, Previous Year: {prev_year}, Change: {analysis_year:.2f}%")
+
+else:
+    st.write("No data available for the selected stock.")
