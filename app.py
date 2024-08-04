@@ -1,79 +1,81 @@
-import pandas as pd
 import streamlit as st
-import json
-from datetime import datetime
+import pandas as pd
+import os
 
-# Function to load data
-def load_data(filename):
-    return pd.read_excel(filename, sheet_name=None)
+def load_excel_files(stock_folder):
+    # Load Excel files from the specified folder
+    files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
+    return files
 
-# Function to calculate the percentage change
-def calculate_percentage_change(old_value, new_value):
-    if old_value == 0:
-        return float('inf') if new_value != 0 else 0
-    return ((new_value - old_value) / old_value) * 100
+def read_excel_sheets(file_path):
+    # Read all sheets from the Excel file
+    xls = pd.ExcelFile(file_path)
+    sheet_names = xls.sheet_names
+    sheets = {sheet: pd.read_excel(xls, sheet_name=sheet) for sheet in sheet_names}
+    return sheets
 
-# Load data
-data = load_data('all_stocks_data.xlsx')
+def get_latest_and_previous_quarter_data(df):
+    # Extract latest and previous quarter columns
+    cols = df.columns
+    sorted_cols = sorted(cols, reverse=True)
+    
+    latest_col = sorted_cols[0]
+    previous_col = sorted_cols[1]
+    
+    latest_data = df[latest_col]
+    previous_data = df[previous_col]
+    
+    return latest_data, previous_data
 
-# Extract the relevant sheets
-stock_data = data.get('Stock Data')  # Replace with the actual sheet name if different
+def compare_quarterly_data(df):
+    # Compare Total Revenue, Gross Profit, and Net Income between latest and previous quarters
+    latest_data, previous_data = get_latest_and_previous_quarter_data(df)
+    
+    comparisons = {}
+    for row in ['Total Revenue', 'Gross Profit', 'Net Income']:
+        if row in latest_data.index and row in previous_data.index:
+            latest_value = latest_data[row].values[0]
+            previous_value = previous_data[row].values[0]
+            comparison = {
+                'Latest': latest_value,
+                'Previous': previous_value,
+                'Change': latest_value - previous_value,
+                'Percentage Change': (latest_value - previous_value) / previous_value * 100 if previous_value != 0 else float('inf')
+            }
+            comparisons[row] = comparison
+    
+    return comparisons
 
-# Streamlit UI
-st.title('Stock Comparative Analysis')
+def main():
+    st.title('Stock Income Statement Comparison')
 
-# Select stock
-stock_symbols = stock_data['symbol'].unique()
-selected_stock = st.selectbox('Select a stock', stock_symbols)
+    stock_folder = st.text_input('Enter the path to the stock folder:', '')
 
-# Filter data for the selected stock
-selected_data = stock_data[stock_data['symbol'] == selected_stock].iloc[0]
-industry = selected_data['industry']
-st.write(f'Industry: {industry}')
-
-# Extract Income Statement data
-income_statement_quarterly = json.loads(selected_data['Income Statement (Quarterly)'])
-income_statement_annual = json.loads(selected_data['Income Statement (Annual)'])
-
-# Convert timestamps to datetime
-def parse_data(data):
-    parsed_data = {}
-    for date_str, metrics in data.items():
-        date = pd.to_datetime(date_str)
-        parsed_data[date] = metrics
-    return parsed_data
-
-income_statement_quarterly = parse_data(income_statement_quarterly)
-income_statement_annual = parse_data(income_statement_annual)
-
-# Get the latest and previous periods for comparison
-def get_latest_and_previous(data):
-    dates = sorted(data.keys())
-    if len(dates) < 2:
-        return None, None
-    latest = dates[-1]
-    previous = dates[-2]
-    return data[latest], data[previous]
-
-latest_quarterly, previous_quarterly = get_latest_and_previous(income_statement_quarterly)
-latest_annual, previous_annual = get_latest_and_previous(income_statement_annual)
-
-# Display comparative analysis
-def display_comparative_analysis(latest, previous, period):
-    if latest and previous:
-        st.subheader(f'Comparative Analysis - {period}')
-        for key in latest.keys():
-            latest_value = latest.get(key, 'N/A')
-            previous_value = previous.get(key, 'N/A')
-            if isinstance(latest_value, (int, float)) and isinstance(previous_value, (int, float)):
-                change = calculate_percentage_change(previous_value, latest_value)
-                st.write(f'{key}: {latest_value} (Change: {change:.2f}%)')
+    if stock_folder:
+        files = load_excel_files(stock_folder)
+        
+        selected_file = st.selectbox('Select an Excel file:', files)
+        
+        if selected_file:
+            file_path = os.path.join(stock_folder, selected_file)
+            sheets = read_excel_sheets(file_path)
+            
+            if 'Income Statement (Quarterly)' in sheets:
+                df_quarterly = sheets['Income Statement (Quarterly)']
+                comparisons = compare_quarterly_data(df_quarterly)
+                
+                st.subheader('Comparison between Latest and Previous Quarter')
+                
+                for metric, data in comparisons.items():
+                    st.write(f"**{metric}**")
+                    st.write(f"Latest: {data['Latest']}")
+                    st.write(f"Previous: {data['Previous']}")
+                    st.write(f"Change: {data['Change']}")
+                    st.write(f"Percentage Change: {data['Percentage Change']:.2f}%")
             else:
-                st.write(f'{key}: {latest_value} (No previous data)')
+                st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
+    else:
+        st.info('Please enter the path to the stock folder.')
 
-st.subheader('Quarterly Income Statement Comparison')
-display_comparative_analysis(latest_quarterly, previous_quarterly, 'Quarterly Income Statement')
-
-st.subheader('Annual Income Statement Comparison')
-display_comparative_analysis(latest_annual, previous_annual, 'Annual Income Statement')
-
+if __name__ == "__main__":
+    main()
