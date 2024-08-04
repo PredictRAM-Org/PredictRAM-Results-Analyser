@@ -3,6 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 
+# Define the correct directory path
+stock_folder = '/absolute/path/to/stock_folder'  # Replace with your actual absolute path
+
 # Function to load Excel data from the stock folder
 def load_stock_data(stock_folder, stock_name):
     # Construct the file path
@@ -37,12 +40,9 @@ def calculate_percentage_change(df):
 def main():
     st.title("Stock Data Analysis")
 
-    # Directory containing stock files
-    stock_folder = 'path/to/stock_folder'  # Update with the actual path
-
     # Check if directory exists
     if not os.path.isdir(stock_folder):
-        st.error(f"Directory {stock_folder} does not exist.")
+        st.error(f"Directory {stock_folder} does not exist. Please check the path.")
         return
 
     # List stock files
