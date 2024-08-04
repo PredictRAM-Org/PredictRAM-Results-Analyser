@@ -34,22 +34,23 @@ def read_excel_sheets(file_path):
         return {}
 
 def get_latest_and_previous_quarter_data(df):
-    # Convert column headers to datetime
+    # Ensure columns are datetime
     df.columns = pd.to_datetime(df.columns, errors='coerce')
-    df = df.rename(columns={col: col.strftime('%Y-%m-%d') for col in df.columns if pd.notnull(col)})
     
-    # Drop columns where conversion to datetime failed
-    df = df.dropna(axis=1, how='all')
+    # Drop columns that couldn't be parsed as dates
+    df = df.loc[:, df.columns.notna()]
     
-    # Sort columns by date
-    cols = sorted(df.columns, reverse=True)
-    
-    if len(cols) < 2:
-        st.error("Not enough quarters to compare latest and previous.")
+    # Check if there are at least two valid dates
+    if len(df.columns) < 2:
+        st.error("Not enough valid columns for comparison.")
         return None, None
     
-    latest_col = cols[0]
-    previous_col = cols[1]
+    # Sort columns by date
+    sorted_cols = sorted(df.columns, reverse=True)
+    
+    # Identify latest and previous columns
+    latest_col = sorted_cols[0]
+    previous_col = sorted_cols[1]
     
     if latest_col not in df.columns or previous_col not in df.columns:
         st.error("Columns for latest and previous quarters are missing.")
