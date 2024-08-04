@@ -3,11 +3,6 @@ import pandas as pd
 import os
 
 def load_excel_files(stock_folder):
-    # Verify the folder path is correct
-    if not stock_folder:
-        st.error("Stock folder path is empty. Please enter a valid path.")
-        return []
-    
     # Ensure the path is an absolute path
     stock_folder = os.path.abspath(stock_folder)
     
@@ -74,7 +69,7 @@ def compare_quarterly_data(df):
 def main():
     st.title('Stock Income Statement Comparison')
 
-    # Provide the path to the cloned repository or stock folder
+    # Provide the path to the folder containing Excel files
     stock_folder = st.text_input('Enter the path to the stock folder:', '')
 
     if stock_folder:
