@@ -12,12 +12,20 @@ def load_excel_files(stock_folder):
     
     try:
         files = [f for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
-        if not files:
-            st.warning("No Excel files found in the specified folder.")
         return files
     except Exception as e:
         st.error(f"Error loading files: {e}")
         return []
+
+def find_stock_file(stock_name, stock_folder):
+    # Load Excel files from the folder
+    files = load_excel_files(stock_folder)
+    
+    # Search for the file with the stock name
+    for file in files:
+        if stock_name in file:
+            return file
+    return None
 
 def read_excel_sheets(file_path):
     try:
@@ -73,16 +81,14 @@ def main():
     stock_folder = st.text_input('Enter the path to the stock folder:', '')
 
     if stock_folder:
-        st.write(f"Stock folder path: {stock_folder}")
+        stock_name = st.text_input('Enter the stock name (part of the file name):', '')
         
-        # Load Excel files from the provided folder path
-        files = load_excel_files(stock_folder)
-        
-        if files:
-            selected_file = st.selectbox('Select an Excel file:', files)
+        if stock_name:
+            # Find the Excel file matching the stock name
+            stock_file = find_stock_file(stock_name, stock_folder)
             
-            if selected_file:
-                file_path = os.path.join(stock_folder, selected_file)
+            if stock_file:
+                file_path = os.path.join(stock_folder, stock_file)
                 st.write(f"Selected file path: {file_path}")
                 
                 # Read sheets from the selected Excel file
@@ -105,8 +111,10 @@ def main():
                         st.write("No relevant data found for comparison.")
                 else:
                     st.error("The selected file does not contain the 'Income Statement (Quarterly)' sheet.")
+            else:
+                st.warning(f"No file found for stock name '{stock_name}' in the specified folder.")
         else:
-            st.warning("No Excel files found in the specified folder.")
+            st.info('Please enter the stock name.')
     else:
         st.info('Please enter the path to the stock folder.')
 
