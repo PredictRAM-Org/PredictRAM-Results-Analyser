@@ -40,9 +40,23 @@ def main():
     # Directory containing stock files
     stock_folder = 'path/to/stock_folder'  # Update with the actual path
 
+    # Check if directory exists
+    if not os.path.isdir(stock_folder):
+        st.error(f"Directory {stock_folder} does not exist.")
+        return
+
     # List stock files
-    stock_files = [f.replace('.xlsx', '') for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
-    
+    try:
+        stock_files = [f.replace('.xlsx', '') for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
+    except OSError as e:
+        st.error(f"Error accessing directory: {e}")
+        return
+
+    # Ensure there are stock files
+    if not stock_files:
+        st.error("No stock files found in the directory.")
+        return
+
     # User selects a stock
     stock_name = st.selectbox("Select a Stock", stock_files)
 
