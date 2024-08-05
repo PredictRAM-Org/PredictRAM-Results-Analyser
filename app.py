@@ -47,11 +47,14 @@ if stock_symbol:
     risk_score = calculate_risk_score(stock)
     st.subheader(f"Risk Meter for {stock_symbol}")
     
+    # Normalize risk score for progress bar
+    normalized_risk_score = min(max(risk_score / 5, 0), 1)
+    
     # Determine risk level
-    if risk_score < 0.5:
+    if risk_score < 1:
         risk_level = 'Low'
         risk_color = 'green'
-    elif risk_score < 1.5:
+    elif risk_score < 2:
         risk_level = 'Medium'
         risk_color = 'orange'
     else:
@@ -60,7 +63,7 @@ if stock_symbol:
     
     # Display risk level as a progress bar or metric
     st.metric(label="Risk Score", value=f"{risk_score:.2f}", delta=risk_level)
-    st.progress(risk_score / 2)
+    st.progress(normalized_risk_score)
 
     # Fetch income statement
     income_statement = fetch_income_statement(stock_symbol)
