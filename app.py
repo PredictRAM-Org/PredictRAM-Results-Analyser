@@ -3,6 +3,17 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# Function to fetch stock info
+def fetch_stock_info(symbol):
+    try:
+        stock = yf.Ticker(symbol)
+        info = stock.info
+        history = stock.history(period='1y')
+        return stock, info, history
+    except Exception as e:
+        st.error(f"Error fetching stock data: {e}")
+        return None, None, None
+
 # Function to fetch income statement data
 def fetch_income_statement(symbol):
     try:
@@ -47,19 +58,48 @@ def fetch_yearly_balance_sheet(symbol):
         st.error(f"Error fetching yearly balance sheet data: {e}")
         return pd.DataFrame()
 
-# Function to calculate risk score
-def calculate_risk_score(stock):
+# Function to calculate risk score for investors
+def calculate_investor_score(info):
     try:
-        beta = stock.info.get('beta', 1)
-        debt_to_equity = stock.info.get('debtToEquity', 1)
-        volatility = stock.history(period='1y')['Close'].pct_change().std()
+        pe_ratio = info.get('forwardEps', 1) / info.get('regularMarketPrice', 1)
+        pb_ratio = info.get('priceToBook', 1)
+        roe = info.get('returnOnEquity', 0)
+        profit_margin = info.get('profitMargins', 0)
+        debt_to_equity = info.get('debtToEquity', 1)
         
-        # Simple risk calculation
-        risk_score = (beta * 0.5) + (debt_to_equity * 0.3) + (volatility * 0.2)
-        return risk_score
+        score = 0
+        score += 5 if pe_ratio < 10 else (4 if pe_ratio <= 15 else (3 if pe_ratio <= 20 else 2))
+        score += 5 if pb_ratio < 1 else (4 if pb_ratio <= 2 else (3 if pb_ratio <= 3 else 2))
+        score += 5 if roe >= 0.20 else (4 if roe >= 0.15 else (3 if roe >= 0.10 else 2))
+        score += 5 if profit_margin >= 0.20 else (4 if profit_margin >= 0.15 else (3 if profit_margin >= 0.10 else 2))
+        score += 5 if debt_to_equity < 0.5 else (4 if debt_to_equity <= 1 else (3 if debt_to_equity <= 1.5 else 2))
+        
+        return score
     except Exception as e:
-        st.error(f"Error calculating risk score: {e}")
-        return None
+        st.error(f"Error calculating investor score: {e}")
+        return 0
+
+# Function to calculate risk score for traders
+def calculate_trader_score(info, history):
+    try:
+        beta = info.get('beta', 1)
+        volume = info.get('averageVolume', 1)
+        avg_volume = history['Volume'].mean()
+        daily_range = (history['High'] - history['Low']).mean() / history['Close'].mean()
+        recent_trend = (history['Close'].iloc[-1] - history['Close'].iloc[0]) / history['Close'].iloc[0]
+        
+        score = 0
+        score += 5 if beta >= 1.5 else (4 if beta >= 1.2 else (3 if beta >= 1 else 2))
+        volume_ratio = volume / avg_volume
+        score += 5 if volume_ratio >= 2 else (4 if volume_ratio >= 1.5 else (3 if volume_ratio >= 1 else 2))
+        score += 5 if info.get('bidAskSpread', 0) < 0.01 else (4 if info.get('bidAskSpread', 0) <= 0.02 else (3 if info.get('bidAskSpread', 0) <= 0.03 else 2))
+        score += 5 if daily_range >= 0.05 else (4 if daily_range >= 0.03 else (3 if daily_range >= 0.01 else 2))
+        score += 5 if recent_trend > 0.1 else (4 if recent_trend > 0 else (3 if recent_trend == 0 else 2))
+        
+        return score
+    except Exception as e:
+        st.error(f"Error calculating trader score: {e}")
+        return 0
 
 # Streamlit App
 st.title("Stock Financials Dashboard")
@@ -68,33 +108,35 @@ st.title("Stock Financials Dashboard")
 stock_symbol = st.text_input("Enter the stock symbol", value='AAPL')
 
 if stock_symbol:
-    try:
-        # Fetch stock data
-        stock = yf.Ticker(stock_symbol)
+    stock, info, history = fetch_stock_info(stock_symbol)
+    
+    if stock and info and history is not None:
+        # Calculate and show risk scores
+        investor_score = calculate_investor_score(info)
+        trader_score = calculate_trader_score(info, history)
+        
+        st.subheader(f"Risk Meter for {stock_symbol}")
 
-        # Calculate and show risk score
-        risk_score = calculate_risk_score(stock)
-        if risk_score is not None:
-            st.subheader(f"Risk Meter for {stock_symbol}")
+        # Display investor score
+        st.subheader("Investor Risk Score")
+        st.metric(label="Investor Score", value=f"{investor_score}/25")
+        st.progress(min(investor_score / 25, 1))
 
-            # Normalize risk score for progress bar
-            normalized_risk_score = min(max(risk_score / 5, 0), 1)
+        if investor_score >= 20:
+            st.success("This stock is considered Investor-Friendly.")
+        else:
+            st.warning("This stock is not considered Investor-Friendly.")
+        
+        # Display trader score
+        st.subheader("Trader Risk Score")
+        st.metric(label="Trader Score", value=f"{trader_score}/25")
+        st.progress(min(trader_score / 25, 1))
 
-            # Determine risk level
-            if risk_score < 1:
-                risk_level = 'Low'
-                risk_color = 'green'
-            elif risk_score < 2:
-                risk_level = 'Medium'
-                risk_color = 'orange'
-            else:
-                risk_level = 'High'
-                risk_color = 'red'
-
-            # Display risk level as a progress bar or metric
-            st.metric(label="Risk Score", value=f"{risk_score:.2f}", delta=risk_level)
-            st.progress(normalized_risk_score)
-
+        if trader_score >= 20:
+            st.success("This stock is considered Trader-Friendly.")
+        else:
+            st.warning("This stock is not considered Trader-Friendly.")
+        
         # Fetch and show income statement
         income_statement = fetch_income_statement(stock_symbol)
         
@@ -162,46 +204,24 @@ if stock_symbol:
                 plt.title(f"Selected Quarterly Income Statement Parameters for {stock_symbol}")
                 st.pyplot(fig)
 
-                # Calculate percentage change for selected parameters
-                st.subheader("Percentage Change in Quarterly Income Statement")
-                quarterly_income_statement_pct_change = quarterly_income_statement[selected_quarterly_parameters].pct_change() * 100
-                st.dataframe(quarterly_income_statement_pct_change)
+        # Fetch and show yearly balance sheet data
+        st.subheader(f"Yearly Balance Sheet for {stock_symbol}")
+        yearly_balance_sheet = fetch_yearly_balance_sheet(stock_symbol)
+        st.dataframe(yearly_balance_sheet)
 
-                st.subheader("Percentage Change in Quarterly Income Statement (Chart)")
-                fig, ax = plt.subplots()
-                quarterly_income_statement_pct_change.plot(ax=ax, kind='bar')
-                plt.xticks(rotation=45)
-                plt.ylabel('Percentage Change')
-                plt.title(f"Quarterly Income Statement Percentage Change for {stock_symbol}")
-                st.pyplot(fig)
+        st.subheader("Select Parameters to Visualize (Yearly Balance Sheet)")
+        selected_balance_sheet_parameters = st.multiselect("Choose parameters (Yearly):", yearly_balance_sheet.columns.tolist(), default=['Total Assets', 'Total Liabilities', 'Shareholder Equity'])
+        
+        if selected_balance_sheet_parameters:
+            st.subheader("Yearly Balance Sheet Visualization")
+            fig, ax = plt.subplots()
+            yearly_balance_sheet[selected_balance_sheet_parameters].plot(ax=ax, kind='bar')
+            plt.xticks(rotation=45)
+            plt.ylabel('Amount')
+            plt.title(f"Selected Yearly Balance Sheet Parameters for {stock_symbol}")
+            st.pyplot(fig)
 
-            # Fetch and show yearly balance sheet data
-            st.subheader(f"Yearly Balance Sheet for {stock_symbol}")
-            yearly_balance_sheet = fetch_yearly_balance_sheet(stock_symbol)
-            st.dataframe(yearly_balance_sheet)
-
-            # Check if default parameters exist in the DataFrame
-            default_balance_sheet_parameters = ['Total Assets', 'Total Liabilities']
-            available_balance_sheet_parameters = [param for param in default_balance_sheet_parameters if param in yearly_balance_sheet.columns]
-
-            st.subheader("Select Parameters to Visualize (Yearly Balance Sheet)")
-            selected_balance_sheet_parameters = st.multiselect(
-                "Choose parameters (Balance Sheet):", 
-                yearly_balance_sheet.columns.tolist(), 
-                default=available_balance_sheet_parameters
-            )
-            
-            if selected_balance_sheet_parameters:
-                st.subheader("Yearly Balance Sheet Visualization")
-                fig, ax = plt.subplots()
-                yearly_balance_sheet[selected_balance_sheet_parameters].plot(ax=ax, kind='bar')
-                plt.xticks(rotation=45)
-                plt.ylabel('Amount')
-                plt.title(f"Selected Yearly Balance Sheet Parameters for {stock_symbol}")
-                st.pyplot(fig)
-        else:
-            st.warning(f"No income statement data found for {stock_symbol}")
-    except Exception as e:
-        st.error(f"Error fetching data for {stock_symbol}: {e}")
+    else:
+        st.warning(f"No data available for {stock_symbol}")
 else:
     st.info("Please enter a stock symbol to start the analysis.")
