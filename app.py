@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def fetch_income_statement(symbol):
-    stock = yf.TTicker(symbol)
+    stock = yf.Ticker(symbol)  # Corrected the typo here
     income_statement = stock.financials.T
     income_statement.index = pd.to_datetime(income_statement.index)
     income_statement.sort_index(ascending=False, inplace=True)
