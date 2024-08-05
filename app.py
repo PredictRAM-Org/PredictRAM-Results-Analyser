@@ -1,117 +1,51 @@
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
 import streamlit as st
+import yfinance as yf
+import pandas as pd
 
-# Define the correct directory path
-stock_folder = '/absolute/path/to/stock_folder'  # Replace with your actual absolute path
-
-# Function to load Excel data from the stock folder
-def load_stock_data(stock_folder, stock_name):
-    # Construct the file path
-    file_path = os.path.join(stock_folder, f'{stock_name}.xlsx')
-    if not os.path.isfile(file_path):
-        st.error(f"File {file_path} not found.")
-        return None, None
+def fetch_income_statement(symbol):
+    # Fetching income statement data from yfinance
+    stock = yf.Ticker(symbol)
+    income_statement = stock.financials.T
     
-    # Load data from the Excel file
-    xl = pd.ExcelFile(file_path)
+    # Converting to a more readable format
+    income_statement.index = pd.to_datetime(income_statement.index)
+    income_statement.sort_index(ascending=False, inplace=True)
     
-    # Load sheets
-    try:
-        quarterly_df = xl.parse('Income Statement (Quarterly)')
-        annual_df = xl.parse('Income Statement (Annual)')
-    except ValueError as e:
-        st.error(f"Error loading sheets: {e}")
-        return None, None
+    return income_statement
 
-    return quarterly_df, annual_df
+def compare_income_statements(current_quarter, previous_quarter):
+    # Comparing the current quarter with the previous quarter
+    comparison = pd.DataFrame({
+        'Current Quarter': current_quarter,
+        'Previous Quarter': previous_quarter,
+        'Change (%)': ((current_quarter - previous_quarter) / previous_quarter) * 100
+    })
+    return comparison
 
-# Function to calculate percentage change
-def calculate_percentage_change(df):
-    # Ensure the metric row is set as the index
-    df.set_index('Metric', inplace=True)
-    
-    # Calculate percentage change
-    percentage_change = df.pct_change(axis=1) * 100
-    return percentage_change
+st.title("Stock Income Statement Comparison")
 
-# Main function to display the app
-def main():
-    st.title("Stock Data Analysis")
+# Input for stock symbol
+stock_symbol = st.text_input("Enter the stock symbol", value='AAPL')
 
-    # Check if directory exists
-    if not os.path.isdir(stock_folder):
-        st.error(f"Directory {stock_folder} does not exist. Please check the path.")
-        return
+if stock_symbol:
+    income_statement = fetch_income_statement(stock_symbol)
 
-    # List stock files
-    try:
-        stock_files = [f.replace('.xlsx', '') for f in os.listdir(stock_folder) if f.endswith('.xlsx')]
-    except OSError as e:
-        st.error(f"Error accessing directory: {e}")
-        return
-
-    # Ensure there are stock files
-    if not stock_files:
-        st.error("No stock files found in the directory.")
-        return
-
-    # User selects a stock
-    stock_name = st.selectbox("Select a Stock", stock_files)
-
-    if stock_name:
-        # Load data
-        quarterly_df, annual_df = load_stock_data(stock_folder, stock_name)
+    if not income_statement.empty:
+        st.subheader(f"Income Statement for {stock_symbol}")
+        st.dataframe(income_statement)
         
-        if quarterly_df is not None and annual_df is not None:
-            st.subheader("Quarterly Income Statement Data")
-            st.dataframe(quarterly_df)
+        # Select the most recent quarters for comparison
+        if len(income_statement) >= 2:
+            latest_quarter = income_statement.iloc[0]
+            previous_quarter = income_statement.iloc[1]
             
-            st.subheader("Annual Income Statement Data")
-            st.dataframe(annual_df)
-
-            # Process quarterly data
-            if 'Metric' in quarterly_df.columns:
-                quarterly_percentage_change = calculate_percentage_change(quarterly_df)
-                
-                st.subheader("Quarterly Data Percentage Change")
-                st.dataframe(quarterly_percentage_change)
-
-                # Plotting quarterly percentage changes
-                fig, ax = plt.subplots(figsize=(12, 8))
-                for metric in quarterly_percentage_change.index:
-                    ax.plot(quarterly_percentage_change.columns, quarterly_percentage_change.loc[metric], marker='o', label=metric)
-                
-                ax.set_title('Quarterly Percentage Change')
-                ax.set_xlabel('Quarter')
-                ax.set_ylabel('Percentage Change (%)')
-                ax.legend(loc='best')
-                ax.grid(True)
-                plt.xticks(rotation=45)
-                plt.tight_layout()
-                st.pyplot(fig)
-
-            # Process annual data
-            if 'Metric' in annual_df.columns:
-                annual_percentage_change = calculate_percentage_change(annual_df)
-                
-                st.subheader("Annual Data Percentage Change")
-                st.dataframe(annual_percentage_change)
-
-                # Plotting annual percentage changes
-                fig, ax = plt.subplots(figsize=(12, 8))
-                for metric in annual_percentage_change.index:
-                    ax.plot(annual_percentage_change.columns, annual_percentage_change.loc[metric], marker='o', label=metric)
-                
-                ax.set_title('Annual Percentage Change')
-                ax.set_xlabel('Year')
-                ax.set_ylabel('Percentage Change (%)')
-                ax.legend(loc='best')
-                ax.grid(True)
-                plt.xticks(rotation=45)
-                plt.tight_layout()
-                st.pyplot(fig)
-
-if __name__ == "__main__":
-    main()
+            comparison = compare_income_statements(latest_quarter, previous_quarter)
+            
+            st.subheader(f"Comparison of the latest quarter with the previous quarter for {stock_symbol}")
+            st.dataframe(comparison)
+        else:
+            st.warning("Not enough data to compare quarters.")
+    else:
+        st.warning(f"No income statement data found for {stock_symbol}")
+else:
+    st.info("Please enter a stock symbol to start the comparison.")
