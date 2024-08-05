@@ -23,6 +23,16 @@ def fetch_yearly_balance_sheet(symbol):
     yearly_balance_sheet = stock.balance_sheet.T.groupby(stock.balance_sheet.columns.year).sum()
     return yearly_balance_sheet
 
+# Function to calculate risk score
+def calculate_risk_score(stock):
+    beta = stock.info.get('beta', 1)
+    debt_to_equity = stock.info.get('debtToEquity', 1)
+    volatility = stock.history(period='1y')['Close'].pct_change().std()
+    
+    # Simple risk calculation
+    risk_score = (beta * 0.5) + (debt_to_equity * 0.3) + (volatility * 0.2)
+    return risk_score
+
 # Streamlit App
 st.title("Stock Financials Dashboard")
 
@@ -30,6 +40,28 @@ st.title("Stock Financials Dashboard")
 stock_symbol = st.text_input("Enter the stock symbol", value='AAPL')
 
 if stock_symbol:
+    # Fetch stock data
+    stock = yf.Ticker(stock_symbol)
+
+    # Calculate and show risk score
+    risk_score = calculate_risk_score(stock)
+    st.subheader(f"Risk Meter for {stock_symbol}")
+    
+    # Determine risk level
+    if risk_score < 0.5:
+        risk_level = 'Low'
+        risk_color = 'green'
+    elif risk_score < 1.5:
+        risk_level = 'Medium'
+        risk_color = 'orange'
+    else:
+        risk_level = 'High'
+        risk_color = 'red'
+    
+    # Display risk level as a progress bar or metric
+    st.metric(label="Risk Score", value=f"{risk_score:.2f}", delta=risk_level)
+    st.progress(risk_score / 2)
+
     # Fetch income statement
     income_statement = fetch_income_statement(stock_symbol)
     
