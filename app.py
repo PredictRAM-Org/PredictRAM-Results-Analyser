@@ -105,7 +105,7 @@ def calculate_trader_score(info, history):
 st.title("Stock Financials Dashboard")
 
 # Input for stock symbol
-stock_symbol = st.text_input("Enter the stock symbol", value='AAPL')
+stock_symbol = st.text_input("Enter the stock symbol", value='ITC.NS')
 
 if stock_symbol:
     stock, info, history = fetch_stock_info(stock_symbol)
