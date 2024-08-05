@@ -86,8 +86,16 @@ if stock_symbol:
         yearly_balance_sheet = fetch_yearly_balance_sheet(stock_symbol)
         st.dataframe(yearly_balance_sheet)
 
+        # Check if default parameters exist in the DataFrame
+        default_balance_sheet_parameters = ['Total Assets', 'Total Liabilities']
+        available_balance_sheet_parameters = [param for param in default_balance_sheet_parameters if param in yearly_balance_sheet.columns]
+
         st.subheader("Select Parameters to Visualize (Yearly Balance Sheet)")
-        selected_balance_sheet_parameters = st.multiselect("Choose parameters (Balance Sheet):", yearly_balance_sheet.columns.tolist(), default=['Total Assets', 'Total Liabilities'])
+        selected_balance_sheet_parameters = st.multiselect(
+            "Choose parameters (Balance Sheet):", 
+            yearly_balance_sheet.columns.tolist(), 
+            default=available_balance_sheet_parameters
+        )
         
         if selected_balance_sheet_parameters:
             st.subheader("Yearly Balance Sheet Visualization")
