@@ -132,7 +132,7 @@ if stock_symbol:
         st.metric(label="Trader Score", value=f"{trader_score}/25")
         st.progress(min(trader_score / 25, 1))
 
-        if trader_score >= 20:
+        if trader_score >= 16:
             st.success("This stock is considered Trader-Friendly.")
         else:
             st.warning("This stock is not considered Trader-Friendly.")
