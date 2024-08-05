@@ -3,35 +3,15 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Function to fetch income statement data
-def fetch_income_statement(symbol):
+# Function to fetch quarterly income statement data
+def fetch_quarterly_income_statement(symbol):
     stock = yf.Ticker(symbol)
-    income_statement = stock.financials.T
-    income_statement.index = pd.to_datetime(income_statement.index)
-    income_statement.sort_index(ascending=False, inplace=True)
-    return income_statement
+    quarterly_income_statement = stock.quarterly_financials.T
+    quarterly_income_statement.index = pd.to_datetime(quarterly_income_statement.index)
+    quarterly_income_statement.sort_index(ascending=False, inplace=True)
+    return quarterly_income_statement
 
-# Function to fetch yearly income statement data
-def fetch_yearly_income_statement(symbol):
-    stock = yf.Ticker(symbol)
-    yearly_income_statement = stock.financials.T.groupby(stock.financials.columns.year).sum()
-    return yearly_income_statement
-
-# Function to fetch yearly balance sheet data
-def fetch_yearly_balance_sheet(symbol):
-    stock = yf.Ticker(symbol)
-    yearly_balance_sheet = stock.balance_sheet.T.groupby(stock.balance_sheet.columns.year).sum()
-    return yearly_balance_sheet
-
-# Function to calculate risk score
-def calculate_risk_score(stock):
-    beta = stock.info.get('beta', 1)
-    debt_to_equity = stock.info.get('debtToEquity', 1)
-    volatility = stock.history(period='1y')['Close'].pct_change().std()
-    
-    # Simple risk calculation
-    risk_score = (beta * 0.5) + (debt_to_equity * 0.3) + (volatility * 0.2)
-    return risk_score
+# Existing functions and Streamlit code ...
 
 # Streamlit App
 st.title("Stock Financials Dashboard")
@@ -114,6 +94,36 @@ if stock_symbol:
             plt.xticks(rotation=45)
             plt.ylabel('Percentage Change')
             plt.title(f"Yearly Income Statement Percentage Change for {stock_symbol}")
+            st.pyplot(fig)
+
+        # Fetch and show quarterly income statement data
+        st.subheader(f"Quarterly Income Statement for {stock_symbol}")
+        quarterly_income_statement = fetch_quarterly_income_statement(stock_symbol)
+        st.dataframe(quarterly_income_statement)
+
+        st.subheader("Select Parameters to Visualize (Quarterly Income Statement)")
+        selected_quarterly_parameters = st.multiselect("Choose parameters (Quarterly):", quarterly_income_statement.columns.tolist(), default=['Total Revenue', 'Operating Expense', 'Net Income'])
+        
+        if selected_quarterly_parameters:
+            st.subheader("Quarterly Income Statement Visualization")
+            fig, ax = plt.subplots()
+            quarterly_income_statement[selected_quarterly_parameters].plot(ax=ax, kind='line', marker='o')
+            plt.xticks(rotation=45)
+            plt.ylabel('Amount')
+            plt.title(f"Selected Quarterly Income Statement Parameters for {stock_symbol}")
+            st.pyplot(fig)
+
+            # Calculate percentage change for selected parameters
+            st.subheader("Percentage Change in Quarterly Income Statement")
+            quarterly_income_statement_pct_change = quarterly_income_statement[selected_quarterly_parameters].pct_change() * 100
+            st.dataframe(quarterly_income_statement_pct_change)
+
+            st.subheader("Percentage Change in Quarterly Income Statement (Chart)")
+            fig, ax = plt.subplots()
+            quarterly_income_statement_pct_change.plot(ax=ax, kind='bar')
+            plt.xticks(rotation=45)
+            plt.ylabel('Percentage Change')
+            plt.title(f"Quarterly Income Statement Percentage Change for {stock_symbol}")
             st.pyplot(fig)
 
         # Fetch and show yearly balance sheet data
