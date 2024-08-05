@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def fetch_income_statement(symbol):
-    stock = yf.Ticker(symbol)  # Corrected the typo here
+    stock = yf.Ticker(symbol)
     income_statement = stock.financials.T
     income_statement.index = pd.to_datetime(income_statement.index)
     income_statement.sort_index(ascending=False, inplace=True)
@@ -67,27 +67,48 @@ if stock_symbol:
         st.subheader(f"Yearly Income Statement for {stock_symbol}")
         yearly_income_statement = fetch_yearly_income_statement(stock_symbol)
         st.dataframe(yearly_income_statement)
-        
+
         st.subheader("Yearly Income Statement Parameters")
         fig, ax = plt.subplots()
-        yearly_income_statement[['Total Revenue', 'Net Income']].plot(ax=ax, kind='bar')
+        yearly_income_statement.plot(ax=ax, kind='bar')
         plt.xticks(rotation=45)
         plt.ylabel('Amount')
         plt.title(f"Yearly Income Statement for {stock_symbol}")
+        st.pyplot(fig)
+
+        # Calculate percentage change in yearly income statement data
+        st.subheader("Percentage Change in Yearly Income Statement")
+        yearly_income_statement_pct_change = yearly_income_statement.pct_change() * 100
+        st.dataframe(yearly_income_statement_pct_change)
+
+        st.subheader("Percentage Change in Yearly Income Statement (Chart)")
+        fig, ax = plt.subplots()
+        yearly_income_statement_pct_change.plot(ax=ax, kind='bar')
+        plt.xticks(rotation=45)
+        plt.ylabel('Percentage Change')
+        plt.title(f"Yearly Income Statement Percentage Change for {stock_symbol}")
         st.pyplot(fig)
 
         # Fetch and display yearly balance sheet data
         st.subheader(f"Yearly Balance Sheet for {stock_symbol}")
         yearly_balance_sheet = fetch_yearly_balance_sheet(stock_symbol)
         st.dataframe(yearly_balance_sheet)
-        
+
         st.subheader("Yearly Balance Sheet Parameters")
         fig, ax = plt.subplots()
-        yearly_balance_sheet[['Total Assets', 'Total Liabilities']].plot(ax=ax, kind='bar')
-        plt.xticks(rotation=45)
-        plt.ylabel('Amount')
-        plt.title(f"Yearly Balance Sheet for {stock_symbol}")
-        st.pyplot(fig)
+
+        # Check if the required columns are available in the DataFrame
+        balance_sheet_columns = ['Total Assets', 'Total Liabilities']
+        available_columns = [col for col in balance_sheet_columns if col in yearly_balance_sheet.columns]
+
+        if available_columns:
+            yearly_balance_sheet[available_columns].plot(ax=ax, kind='bar')
+            plt.xticks(rotation=45)
+            plt.ylabel('Amount')
+            plt.title(f"Yearly Balance Sheet for {stock_symbol}")
+            st.pyplot(fig)
+        else:
+            st.warning("The specified columns are not available in the balance sheet data.")
     else:
         st.warning(f"No income statement data found for {stock_symbol}")
 else:
