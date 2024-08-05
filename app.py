@@ -68,17 +68,18 @@ if stock_symbol:
         yearly_income_statement = fetch_yearly_income_statement(stock_symbol)
         st.dataframe(yearly_income_statement)
 
-        st.subheader("Yearly Income Statement Parameters")
+        # Filter the yearly income statement to only include Total Revenue, Operating Expense, and Net Income
+        st.subheader("Yearly Income Statement Parameters (Total Revenue, Operating Expense, Net Income)")
         fig, ax = plt.subplots()
-        yearly_income_statement.plot(ax=ax, kind='bar')
+        yearly_income_statement[['Total Revenue', 'Operating Expense', 'Net Income']].plot(ax=ax, kind='bar')
         plt.xticks(rotation=45)
         plt.ylabel('Amount')
         plt.title(f"Yearly Income Statement for {stock_symbol}")
         st.pyplot(fig)
 
-        # Calculate percentage change in yearly income statement data
-        st.subheader("Percentage Change in Yearly Income Statement")
-        yearly_income_statement_pct_change = yearly_income_statement.pct_change() * 100
+        # Calculate and display percentage change in Total Revenue, Operating Expense, and Net Income
+        st.subheader("Percentage Change in Yearly Income Statement (Total Revenue, Operating Expense, Net Income)")
+        yearly_income_statement_pct_change = yearly_income_statement[['Total Revenue', 'Operating Expense', 'Net Income']].pct_change() * 100
         st.dataframe(yearly_income_statement_pct_change)
 
         st.subheader("Percentage Change in Yearly Income Statement (Chart)")
@@ -113,3 +114,4 @@ if stock_symbol:
         st.warning(f"No income statement data found for {stock_symbol}")
 else:
     st.info("Please enter a stock symbol to start the comparison.")
+
