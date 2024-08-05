@@ -122,7 +122,7 @@ if stock_symbol:
         st.metric(label="Investor Score", value=f"{investor_score}/25")
         st.progress(min(investor_score / 25, 1))
 
-        if investor_score >= 20:
+        if investor_score >= 14:
             st.success("This stock is considered Investor-Friendly.")
         else:
             st.warning("This stock is not considered Investor-Friendly.")
